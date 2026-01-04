@@ -1,105 +1,152 @@
 #include <iostream>
-#include <fstream>
-#include <string>
-#include <vector>
 #include <unordered_set>
+#include <vector>
+#include <string>
+#include <sstream>
+#include <fstream>
 #include <regex>
 #include <algorithm>
-#include <cstdlib>
-
-using namespace std;
+#include <cstdlib> 
 
 
-unordered_set<string> keywords = {
-    "if", "else", "for", "while", "return",
-    "int", "float", "double", "char",
-    "void", "bool", "main", "cin", "cout"
-};
+std::unordered_set<std::string> validKeywords = { "if", "else", "for", "while", "return", "int", "float", "double", "char", "void", "bool", "main", "include", "cin", "cout" };
 
-class Lexer {
+class LexerAnalyzer {
 public:
-    Lexer(const string& text) {
-        input = text;
-    }
+    LexerAnalyzer(const std::string& input) : input_(input) {}
 
     void analyze() {
-        int identifiers = 0;
-        int numbers = 0;
-        int strings = 0;
-        int keywordsCount = 0;
-        int separators = 0;
-        int arithmeticOps = 0;
-        int logicalOps = 0;
-        int spaces = 0;
+     
+        int identifierCount = 0;
+        int separatorCount = 0;
+        int numberCount = 0;
+        int stringCount = 0;
+        int keywordCount = 0;
+        int constantCount = 0;
+        int logicalOperatorCount = 0;
+        int arithmeticOperatorCount = 0;
+        int commentCount = 0;
+        int spaceCount = 0;
 
-        vector<string> errors;
+        std::vector<std::string> errors;
 
-        regex idRegex("\\b[a-zA-Z_][a-zA-Z0-9_]*\\b");
-        regex numberRegex("\\b\\d+\\b");
-        regex stringRegex("\"[^\"]*\"");
-        regex keywordRegex("\\b(if|else|for|while|return|cin|cout)\\b");
-        regex separatorRegex("[,;:.]");
-        regex arithmeticRegex("[+\\-*%]");
-        regex logicalRegex("\\b(and|or|not)\\b");
-        regex spaceRegex("\\s");
-        regex commentRegex("//.*|/\\*(.|\\n)*?\\*/");
+    
+        std::regex identifierRegex("\\b[a-zA-Z_][a-zA-Z0-9_]*\\b");
+        std::regex separatorRegex("[,;:.]");
+        std::regex numberRegex("\\b\\d+\\b");
+        std::regex stringRegex("\"[^\"]*\"");
+        std::regex keywordRegex("\\b(if|else|while|for|switch|case|break|continue|return|cin|cout)\\b");
+        std::regex constantRegex("\\b(true|false|null)\\b");
+        std::regex logicalOperatorRegex("\\b(and|or|not)\\b");
+        std::regex arithmeticOperatorRegex("[+\\-*%]");
+        std::regex commentRegex("//.*|/\\*(.|\\n)*?\\*/");
+        std::regex spaceRegex("\\s");
 
+    
+        input_ = std::regex_replace(input_, commentRegex, "");
 
-        input = regex_replace(input, commentRegex, "");
-
-        countMatches(numberRegex, numbers);
-        countMatches(stringRegex, strings);
-        countMatches(keywordRegex, keywordsCount);
-        countMatches(separatorRegex, separators);
-        countMatches(arithmeticRegex, arithmeticOps);
-        countMatches(logicalRegex, logicalOps);
-        countMatches(spaceRegex, spaces);
-
-        auto it = sregex_iterator(input.begin(), input.end(), idRegex);
-        auto end = sregex_iterator();
-        while (it != end) {
-            if (keywords.find(it->str()) == keywords.end()) {
-                identifiers++;
+      
+        auto countMatches = [&](std::regex& reg, int& count) {
+            auto iter = std::sregex_iterator(input_.begin(), input_.end(), reg);
+            auto end = std::sregex_iterator();
+            while (iter != end) {
+                count++;
+                ++iter;
             }
-            ++it;
+        };
+
+
+        countMatches(separatorRegex, separatorCount);
+        countMatches(numberRegex, numberCount);
+        countMatches(stringRegex, stringCount);
+        countMatches(keywordRegex, keywordCount);
+        countMatches(constantRegex, constantCount);
+        countMatches(logicalOperatorRegex, logicalOperatorCount);
+        countMatches(arithmeticOperatorRegex, arithmeticOperatorCount);
+        countMatches(spaceRegex, spaceCount);
+
+        
+        auto iter = std::sregex_iterator(input_.begin(), input_.end(), identifierRegex);
+        auto end = std::sregex_iterator();
+        while (iter != end) {
+            std::string match = iter->str();
+            if (validKeywords.find(match) == validKeywords.end()) {
+                identifierCount++;
+            }
+            ++iter;
         }
 
-        cout << "Identifiers: " << identifiers << endl;
-        cout << "Keywords: " << keywordsCount << endl;
-        cout << "Numbers: " << numbers << endl;
-        cout << "Strings: " << strings << endl;
-        cout << "Separators: " << separators << endl;
-        cout << "Arithmetic operators: " << arithmeticOps << endl;
-        cout << "Logical operators: " << logicalOps << endl;
-        cout << "Spaces: " << spaces << endl;
+     
+        std::regex allRegex(
+                "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b|[,;:.]|\\b\\d+\\b|\"[^\"]*\"|\\b(if|else|while|for|switch|case|break|continue|return|cin|cout)\\b|\\b(true|false|null)\\b|\\b(and|or|not)\\b|[+\\-*/%]|<<|>>\\s");
+
+        iter = std::sregex_iterator(input_.begin(), input_.end(), allRegex);
+        size_t pos = 0;
+        while (iter != end) {
+            if (pos < iter->position()) {
+                std::string errorSegment = input_.substr(pos, iter->position() - pos);
+                if (!std::all_of(errorSegment.begin(), errorSegment.end(), isspace)) {
+                    errors.push_back(errorSegment);
+                }
+            }
+            pos = iter->position() + iter->str().length();
+            ++iter;
+        }
+
+        if (pos < input_.length()) {
+            std::string errorSegment = input_.substr(pos);
+            if (!std::all_of(errorSegment.begin(), errorSegment.end(), isspace)) {
+                errors.push_back(errorSegment);
+            }
+        }
+
+        
+        int errorCount = errors.size();
+
+    
+        std::cout << "Number of identifiers: " << identifierCount << std::endl;
+        std::cout << "Number of separators: " << separatorCount << std::endl;
+        std::cout << "Number of numbers: " << numberCount << std::endl;
+        std::cout << "Number of strings: " << stringCount << std::endl;
+        std::cout << "Number of keywords: " << keywordCount << std::endl;
+        std::cout << "Number of constants: " << constantCount << std::endl;
+        std::cout << "Number of logical operators: " << logicalOperatorCount << std::endl;
+        std::cout << "Number of arithmetic operators: " << arithmeticOperatorCount << std::endl;
+        std::cout << "Number of comments: " << commentCount << std::endl;
+        std::cout << "Number of spaces: " << spaceCount << std::endl;
+        std::cout << "Number of errors: " << errorCount << std::endl;
+
+        if (errorCount > 0) {
+            std::cout << "Errors:" << std::endl;
+            for (const auto& error : errors) {
+                std::cout << error << std::endl;
+            }
+        }
     }
 
 private:
-    string input;
-
-    void countMatches(regex& reg, int& counter) {
-        auto it = sregex_iterator(input.begin(), input.end(), reg);
-        auto end = sregex_iterator();
-        while (it != end) {
-            counter++;
-            ++it;
-        }
-    }
+    std::string input_;
 };
 
 int main() {
-    string path = getenv("USERPROFILE");
-    path += "\\Desktop\\program.txt";
+    std::string filePath;
 
-    ifstream file(path);
-    if (!file) {
-        cout << "Could not open input file." << endl;
+    std::cout << "Enter path to program.txt file: ";
+    std::getline(std::cin, filePath);
+
+    std::ifstream file(filePath);
+    if (!file.is_open()) {
+        std::cerr << "Error: Unable to open file: " << filePath << std::endl;
         return 1;
     }
 
-    string content((istreambuf_iterator<char>(file)), istreambuf_iterator<char>());
-    Lexer lexer(content);
-    lexer.analyze();
+    std::string input(
+        (std::istreambuf_iterator<char>(file)),
+        std::istreambuf_iterator<char>()
+    );
+
+    LexerAnalyzer analyzer(input);
+    analyzer.analyze();
 
     return 0;
 }
